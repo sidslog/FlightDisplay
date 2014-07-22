@@ -10,13 +10,22 @@ import UIKit
 import CoreData
 
 @UIApplicationMain
-class AppDelegate: UIResponder, UIApplicationDelegate {
+class AppDelegate: UIResponder, UIApplicationDelegate, SRWebSocketDelegate {
                             
     var window: UIWindow?
 
-
+    var wSocket: SRWebSocket?
+    
     func application(application: UIApplication, didFinishLaunchingWithOptions launchOptions: NSDictionary?) -> Bool {
         // Override point for customization after application launch.
+        
+//        wSocket = SRWebSocket(URL: NSURL(string: "ws://voha-bbb.linuxdrone.org:7681/xxx"))
+        wSocket = SRWebSocket(URL: NSURL(string: "ws://voha-bbb.linuxdrone.org:7681/xxx"), protocols: ["telemetry-protocol"])
+        if let sock = wSocket {
+            sock.delegate = self
+            sock.open()
+        }
+        
         return true
     }
 
@@ -130,6 +139,44 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         let urls = NSFileManager.defaultManager().URLsForDirectory(.DocumentDirectory, inDomains: .UserDomainMask)
         return urls[urls.endIndex-1] as NSURL
     }
+
+    func webSocket(webSocket: SRWebSocket!, didCloseWithCode code: Int, reason: String!, wasClean: Bool) {
+        println("socket closed: \(code), \(reason), \(wasClean)")
+
+    }
+    
+    func webSocket(webSocket: SRWebSocket!, didFailWithError error: NSError!) {
+        println("socket error: \(error)")
+    }
+    
+
+    func webSocketDidOpen(webSocket: SRWebSocket!) {
+        println("socket opened")
+        subscribeToAttitude()
+    }
+    
+    func webSocket(webSocket: SRWebSocket!, didReceiveMessage message: AnyObject!) {
+//        println("message received: \(message)")
+        
+        if message.isKindOfClass(NSData) {
+            let data = message as NSData
+            let dict = data.BSONValue()
+            println("dict: \(dict)")
+        }
+        
+    }
+    
+    func subscribeToAttitude() {
+        if let sock = wSocket {
+            
+            let dic = ["cmd" : "subscribe", "instance" : "c-gy87-1", "out" : "GyroAccelMagTemp"] as NSDictionary
+            let data = dic.BSONEncode()
+//            println("data: \(data.base64Encoding())")
+            sock.send(data)
+            
+        }
+    }
+
 
 }
 
